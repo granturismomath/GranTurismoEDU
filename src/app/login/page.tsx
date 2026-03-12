@@ -11,19 +11,40 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // 切換登入／註冊模式時清除所有提示
+  const toggleMode = () => {
+    setIsSignUp(prev => !prev)
+    setError(null)
+    setSuccess(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(null)
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError('帳號或密碼錯誤，請再試一次。')
-        return
+      if (isSignUp) {
+        // ── 註冊模式 ──
+        const { error } = await supabase.auth.signUp({ email, password })
+        if (error) {
+          setError('註冊失敗，請確認信箱格式或稍後再試。')
+          return
+        }
+        setSuccess('註冊成功！請前往您的信箱點擊驗證連結。')
+      } else {
+        // ── 登入模式 ──
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) {
+          setError('帳號或密碼錯誤，請再試一次。')
+          return
+        }
+        router.push('/dashboard')
       }
-      router.push('/dashboard')
     } finally {
       setIsLoading(false)
     }
@@ -31,6 +52,7 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError(null)
+    setSuccess(null)
     setIsLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -75,7 +97,7 @@ export default function LoginPage() {
           </div>
 
           {/* 表單 */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div className="space-y-1.5">
               <label
@@ -147,6 +169,16 @@ export default function LoginPage() {
               </p>
             )}
 
+            {/* 成功提示（註冊後顯示） */}
+            {success && (
+              <p
+                className="text-xs text-center px-4 py-2.5 rounded-2xl"
+                style={{ color: '#34C759', backgroundColor: 'rgba(52,199,89,0.08)' }}
+              >
+                {success}
+              </p>
+            )}
+
             {/* 主要登入按鈕 */}
             <button
               type="submit"
@@ -175,7 +207,7 @@ export default function LoginPage() {
                   引擎啟動中...
                 </span>
               ) : (
-                '登入系統'
+                isSignUp ? '註冊帳號' : '登入系統'
               )}
             </button>
           </form>
@@ -225,8 +257,21 @@ export default function LoginPage() {
             使用 Google 帳號登入
           </button>
 
+          {/* 登入／註冊模式切換 */}
+          <p className="text-center text-sm mt-6" style={{ color: '#6E6E73' }}>
+            {isSignUp ? '已經有帳號了？' : '還沒有帳號嗎？'}
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="font-medium ml-1 transition-opacity duration-150 hover:opacity-60"
+              style={{ color: '#6D97B6' }}
+            >
+              {isSignUp ? '立即登入' : '立即註冊'}
+            </button>
+          </p>
+
           {/* 底部法律說明 */}
-          <p className="text-center text-xs mt-7" style={{ color: '#AEAEB2' }}>
+          <p className="text-center text-xs mt-3" style={{ color: '#AEAEB2' }}>
             登入即代表您同意我們的服務條款與隱私政策
           </p>
         </div>
