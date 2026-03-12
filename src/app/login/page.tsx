@@ -62,36 +62,16 @@ export default function LoginPage() {
 
       {/* ── 登入卡片 ── */}
       <div className="relative z-10 w-full max-w-md mx-4">
-        <div className="backdrop-blur-md bg-white/70 rounded-3xl shadow-sm border border-white/60 px-10 py-10">
+        <div className="backdrop-blur-md bg-white/70 rounded-3xl shadow-sm border border-white/60 px-8 py-4">
 
           {/* Logo & 標題 */}
-          <div className="text-center mb-10">
-            <div
-              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-5"
-              style={{ backgroundColor: '#6D97B6' }}
-            >
-              {/* 方格旗 icon */}
-              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-                <rect x="3"  y="5"  width="6" height="6" rx="0.5" fill="white" fillOpacity="0.95" />
-                <rect x="9"  y="5"  width="6" height="6" rx="0.5" fill="white" fillOpacity="0.35" />
-                <rect x="15" y="5"  width="6" height="6" rx="0.5" fill="white" fillOpacity="0.95" />
-                <rect x="21" y="5"  width="6" height="6" rx="0.5" fill="white" fillOpacity="0.35" />
-                <rect x="3"  y="11" width="6" height="6" rx="0.5" fill="white" fillOpacity="0.35" />
-                <rect x="9"  y="11" width="6" height="6" rx="0.5" fill="white" fillOpacity="0.95" />
-                <rect x="15" y="11" width="6" height="6" rx="0.5" fill="white" fillOpacity="0.35" />
-                <rect x="21" y="11" width="6" height="6" rx="0.5" fill="white" fillOpacity="0.95" />
-                <rect x="3"  y="19" width="24" height="2.5" rx="1.25" fill="white" fillOpacity="0.65" />
-              </svg>
-            </div>
-            <h1
-              className="text-2xl font-semibold tracking-tight"
-              style={{ color: '#1D1D1F' }}
-            >
-              超跑教育
-            </h1>
-            <p className="text-sm mt-1.5" style={{ color: '#6E6E73' }}>
-              Supercar Education Platform
-            </p>
+          <div className="text-center pt-16 pb-[72px]">
+            {/* Logo 圖片 */}
+            <img
+              src="/logo.png"
+              alt="超跑教育 Logo"
+              className="w-80 h-auto mx-auto block"
+            />
           </div>
 
           {/* 表單 */}
