@@ -48,54 +48,17 @@ export default function LoginPage() {
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
       style={{ backgroundColor: '#F5F5F7' }}
     >
-      {/* ── 背景：格點 + 藍色幾何三角形 ── */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            {/* 極淡格點網格 */}
-            <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="#1D1D1F" fillOpacity="0.05" />
-            </pattern>
-            {/* 灰藍品牌色幾何三角形（8% 透明度） */}
-            <pattern id="triangles" width="120" height="120" patternUnits="userSpaceOnUse">
-              <polygon
-                points="60,8 112,112 8,112"
-                fill="none"
-                stroke="#6D97B6"
-                strokeOpacity="0.08"
-                strokeWidth="1"
-              />
-              <polygon
-                points="60,30 95,100 25,100"
-                fill="none"
-                stroke="#6D97B6"
-                strokeOpacity="0.06"
-                strokeWidth="1"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dots)" />
-          <rect width="100%" height="100%" fill="url(#triangles)" />
-        </svg>
-      </div>
-
-      {/* ── 四角方格旗裝飾（CSS background，5% 透明度）── */}
-      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos) => (
-        <div
-          key={pos}
-          className={`absolute ${pos} w-40 h-20 pointer-events-none select-none`}
-          style={{
-            backgroundImage: `
-              linear-gradient(45deg, rgba(29,29,31,0.05) 25%, transparent 25%),
-              linear-gradient(-45deg, rgba(29,29,31,0.05) 25%, transparent 25%),
-              linear-gradient(45deg, transparent 75%, rgba(29,29,31,0.05) 75%),
-              linear-gradient(-45deg, transparent 75%, rgba(29,29,31,0.05) 75%)
-            `,
-            backgroundSize: '16px 16px',
-            backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
-          }}
-        />
-      ))}
+      {/* ── 背景：方格旗圖片點綴（極淡，請將圖片放至 public/checkered-flag.png）── */}
+      <div
+        className="absolute inset-0 pointer-events-none select-none"
+        style={{
+          backgroundImage: "url('/checkered-flag.png')",
+          backgroundSize: '160%',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: '50% 30%',
+          opacity: 0.04,
+        }}
+      />
 
       {/* ── 登入卡片 ── */}
       <div className="relative z-10 w-full max-w-md mx-4">

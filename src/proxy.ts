@@ -7,7 +7,7 @@ const PROTECTED_ROUTES = ['/dashboard', '/admin']
 // 已登入後不應再進入的路由（例如登入頁）
 const AUTH_ROUTES = ['/login']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
