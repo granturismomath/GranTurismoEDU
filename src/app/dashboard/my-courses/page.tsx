@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
 
 // ── 型別定義 ──────────────────────────────────────────────────
@@ -10,6 +11,7 @@ type Course = {
   description: string | null
   price: number | null
   status: string
+  cover_image_url: string | null
   created_at: string
 }
 // ─────────────────────────────────────────────────────────────
@@ -131,24 +133,35 @@ function CourseCard({ course }: { course: Course }) {
         hover:shadow-md hover:-translate-y-0.5
       "
     >
-      {/* 封面圖佔位區 */}
-      <div
-        className="h-48 flex items-center justify-center"
-        style={{ backgroundColor: '#F5F5F7' }}
-      >
-        {/* 車輪 icon 作為封面裝飾 */}
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2">
-          <circle cx="12" cy="12" r="10"/>
-          <circle cx="12" cy="12" r="3"/>
-          <line x1="12" y1="2"  x2="12" y2="9"/>
-          <line x1="12" y1="15" x2="12" y2="22"/>
-          <line x1="2"  y1="12" x2="9"  y2="12"/>
-          <line x1="15" y1="12" x2="22" y2="12"/>
-          <line x1="4.93"  y1="4.93"  x2="9.17"  y2="9.17"/>
-          <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
-          <line x1="19.07" y1="4.93"  x2="14.83" y2="9.17"/>
-          <line x1="9.17"  y1="14.83" x2="4.93"  y2="19.07"/>
-        </svg>
+      {/* 封面圖區（有圖顯示真實封面，無圖顯示 fallback）*/}
+      <div className="h-48 overflow-hidden rounded-t-2xl">
+        {course.cover_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={course.cover_image_url}
+            alt={course.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          /* Fallback：淺灰底 + 車輪裝飾 */
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ backgroundColor: '#F5F5F7' }}
+          >
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="3"/>
+              <line x1="12" y1="2"  x2="12" y2="9"/>
+              <line x1="12" y1="15" x2="12" y2="22"/>
+              <line x1="2"  y1="12" x2="9"  y2="12"/>
+              <line x1="15" y1="12" x2="22" y2="12"/>
+              <line x1="4.93"  y1="4.93"  x2="9.17"  y2="9.17"/>
+              <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
+              <line x1="19.07" y1="4.93"  x2="14.83" y2="9.17"/>
+              <line x1="9.17"  y1="14.83" x2="4.93"  y2="19.07"/>
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* 內容區 */}
@@ -181,10 +194,10 @@ function CourseCard({ course }: { course: Course }) {
         </p>
 
         {/* 立即上課按鈕 */}
-        <button
-          type="button"
+        <Link
+          href={`/dashboard/my-courses/${course.id}`}
           className="
-            w-full mt-3 py-2.5 rounded-2xl text-sm font-semibold text-white
+            block w-full mt-3 py-2.5 rounded-2xl text-sm font-semibold text-white text-center
             transition-all duration-200
             hover:brightness-105 hover:shadow-sm
             active:brightness-95
@@ -192,7 +205,7 @@ function CourseCard({ course }: { course: Course }) {
           style={{ backgroundColor: '#6D97B6' }}
         >
           立即上課
-        </button>
+        </Link>
       </div>
     </div>
   )

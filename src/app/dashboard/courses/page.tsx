@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
@@ -191,12 +192,13 @@ export default function CoursesPage() {
 
                       {/* 操作 */}
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <button
+                        <Link
+                          href={`/dashboard/courses/${c.id}`}
                           className="text-xs font-medium transition-opacity duration-150 hover:opacity-60"
                           style={{ color: '#6D97B6' }}
                         >
                           編輯
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   )
