@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
@@ -17,20 +17,44 @@ const inputClass = `
 const labelClass = 'block text-xs font-medium tracking-widest uppercase mb-2'
 
 export default function NewCoursePage() {
-  const router = useRouter()
+  const router      = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [title, setTitle]             = useState('')
-  const [description, setDescription] = useState('')
-  const [price, setPrice]             = useState('')
-  const [status, setStatus]           = useState<'draft' | 'published'>('draft')
+  const [title, setTitle]               = useState('')
+  const [description, setDescription]   = useState('')
+  const [price, setPrice]               = useState('')
+  const [status, setStatus]             = useState<'draft' | 'published'>('draft')
+  const [coverFile, setCoverFile]       = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl]     = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+  const [error, setError]               = useState<string | null>(null)
 
+  // ── 選擇圖片 ──
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null
+    if (!file) return
+    setCoverFile(file)
+    // 產生本地預覽 URL（舊的記得 revoke 以免記憶體洩漏）
+    setPreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+  }
+
+  // ── 清除封面 ──
+  const handleClearCover = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setCoverFile(null)
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // ── 送出表單 ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // ── 必填驗證 ──
+    // 必填驗證
     if (!title.trim()) {
       setError('請輸入課程名稱。')
       return
@@ -42,13 +66,38 @@ export default function NewCoursePage() {
 
     setIsSubmitting(true)
     try {
+      let coverImageUrl: string | null = null
+
+      // ── 上傳封面（若有選擇）──
+      if (coverFile) {
+        const fileExt  = coverFile.name.split('.').pop()
+        const filePath = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('course-covers')
+          .upload(filePath, coverFile)
+
+        if (uploadError) {
+          setError('封面上傳失敗，請稍後再試。')
+          return
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('course-covers')
+          .getPublicUrl(filePath)
+
+        coverImageUrl = urlData.publicUrl
+      }
+
+      // ── 寫入課程資料 ──
       const { error: insertError } = await supabase
         .from('courses')
         .insert([{
-          title: title.trim(),
-          description: description.trim() || null,
-          price: Number(price),
+          title:             title.trim(),
+          description:       description.trim() || null,
+          price:             Number(price),
           status,
+          cover_image_url:   coverImageUrl,
         }])
 
       if (insertError) {
@@ -98,6 +147,97 @@ export default function NewCoursePage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
 
+          {/* ── 課程封面上傳區 ── */}
+          <div>
+            <label className={labelClass} style={{ color: '#6E6E73' }}>
+              課程封面
+            </label>
+
+            {/* 隱藏的 file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {previewUrl ? (
+              /* 已選擇圖片：顯示預覽 */
+              <div className="relative w-full h-56 rounded-2xl overflow-hidden bg-gray-100">
+                {/* 強制使用原生 <img>，避免 Next.js Image 無法處理 blob: URL */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="封面預覽"
+                  className="w-full h-full object-cover"
+                />
+                {/* 更換圖片按鈕 */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="
+                    absolute top-3 right-3
+                    flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium
+                    backdrop-blur-md bg-black/40 text-white
+                    transition-opacity duration-150 hover:bg-black/60
+                  "
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  更換圖片
+                </button>
+                {/* 移除封面按鈕 */}
+                <button
+                  type="button"
+                  onClick={handleClearCover}
+                  className="
+                    absolute top-3 left-3
+                    flex items-center justify-center w-7 h-7 rounded-xl
+                    backdrop-blur-md bg-black/40 text-white
+                    transition-opacity duration-150 hover:bg-black/60
+                  "
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              /* 未選擇圖片：點擊 / 拖曳上傳區 */
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="
+                  w-full h-52 rounded-2xl
+                  border-2 border-dashed border-black/[0.1]
+                  flex flex-col items-center justify-center gap-3
+                  transition-all duration-200
+                  hover:border-[#6D97B6]/40 hover:bg-[#6D97B6]/[0.03]
+                "
+                style={{ backgroundColor: '#FAFAFA' }}
+              >
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C7C7CC" strokeWidth="1.4">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <div className="text-center">
+                  <p className="text-sm font-medium" style={{ color: '#6E6E73' }}>
+                    點擊上傳課程封面
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#AEAEB2' }}>
+                    建議比例 16:9，JPG / PNG / WEBP
+                  </p>
+                </div>
+              </button>
+            )}
+          </div>
+
           {/* 課程名稱 */}
           <div>
             <label className={labelClass} style={{ color: '#6E6E73' }}>
@@ -134,7 +274,6 @@ export default function NewCoursePage() {
               課程售價 <span style={{ color: '#FF3B30' }}>*</span>
             </label>
             <div className="relative">
-              {/* NT$ 裝飾 */}
               <span
                 className="absolute left-5 top-1/2 -translate-y-1/2 text-sm select-none"
                 style={{ color: '#AEAEB2' }}
@@ -226,7 +365,7 @@ export default function NewCoursePage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  建立中…
+                  上傳與建立中…
                 </>
               ) : (
                 '建立課程'
