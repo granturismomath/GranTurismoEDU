@@ -22,6 +22,7 @@ const ADMIN_NAV: NavItem[] = [
 ]
 
 const STUDENT_NAV: NavItem[] = [
+  { label: '探索課程', href: '/dashboard/explore' },
   { label: '我的課程', href: '/dashboard/my-courses' },
 ]
 

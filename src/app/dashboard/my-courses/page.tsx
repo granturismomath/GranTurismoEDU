@@ -45,19 +45,49 @@ export default function MyCoursesPage() {
   const [error, setError]           = useState<string | null>(null)
 
   useEffect(() => {
-    supabase
-      .from('courses')
-      .select('*')
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          setError('課程載入失敗，請稍後再試。')
-        } else {
-          setCourses(data ?? [])
-        }
+    // ── 門禁系統：只顯示已購買的課程 ──
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) {
+        setCourses([])
         setIsLoading(false)
-      })
+        return
+      }
+
+      // Step 1：查詢該使用者的購買紀錄，取得 course_id 陣列
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('enrollments')
+        .select('course_id')
+        .eq('user_id', user.id)
+
+      if (enrollError) {
+        setError('課程載入失敗，請稍後再試。')
+        setIsLoading(false)
+        return
+      }
+
+      const courseIds = (enrollments ?? []).map(e => e.course_id)
+
+      // Step 2：若沒有任何購買紀錄，直接設空陣列
+      if (courseIds.length === 0) {
+        setCourses([])
+        setIsLoading(false)
+        return
+      }
+
+      // Step 3：依購買的 course_id 撈課程資料
+      const { data, error: courseError } = await supabase
+        .from('courses')
+        .select('*')
+        .in('id', courseIds)
+        .order('created_at', { ascending: false })
+
+      if (courseError) {
+        setError('課程載入失敗，請稍後再試。')
+      } else {
+        setCourses(data ?? [])
+      }
+      setIsLoading(false)
+    })
   }, [])
 
   return (
@@ -104,8 +134,11 @@ export default function MyCoursesPage() {
             <path d="M12 20h9"/>
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
           </svg>
+          <p className="text-sm font-medium" style={{ color: '#3D3D3F' }}>
+            您還沒有任何課程
+          </p>
           <p className="text-sm text-center" style={{ color: '#AEAEB2' }}>
-            目前尚無可用的課程，請稍後再回來看看！
+            前往『探索課程』找到您感興趣的內容，立即開始學習！
           </p>
         </div>
       )}
