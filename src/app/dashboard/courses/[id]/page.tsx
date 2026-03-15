@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
@@ -36,6 +36,36 @@ function formatPrice(price: number | null) {
   if (price == null) return '—'
   if (price === 0) return '免費'
   return 'NT$ ' + price.toLocaleString('zh-TW')
+}
+
+// ── 封面縮圖（含 onError 破圖 fallback）─────────────────────
+function CoverThumbnail({ src, alt }: { src: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false)
+  const onError = useCallback(() => setFailed(true), [])
+
+  const fallbackIcon = (
+    <div className="w-44 h-28 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.4">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </div>
+  )
+
+  if (!src || failed) return fallbackIcon
+
+  return (
+    <div className="w-44 h-28 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover"
+        onError={onError}
+      />
+    </div>
+  )
 }
 
 export default function CourseDetailPage() {
@@ -118,23 +148,8 @@ export default function CourseDetailPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
         <div className="flex gap-6 p-6">
 
-          {/* 左：封面縮圖 */}
-          <div className="w-44 h-28 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
-            {course.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={course.cover_image_url}
-                alt={course.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.4">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-            )}
-          </div>
+          {/* 左：封面縮圖（onError fallback 防止破圖）*/}
+          <CoverThumbnail src={course.cover_image_url} alt={course.title} />
 
           {/* 右：課程資訊 */}
           <div className="flex-1 min-w-0">
@@ -166,8 +181,9 @@ export default function CourseDetailPage() {
                 )}
               </div>
 
-              {/* 編輯課程資訊按鈕（預留）*/}
-              <button
+              {/* 編輯課程資訊按鈕 */}
+              <Link
+                href={`/dashboard/courses/${courseId}/edit`}
                 className="
                   shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium
                   border border-black/[0.08] transition-all duration-150
@@ -180,7 +196,7 @@ export default function CourseDetailPage() {
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
                 編輯課程資訊
-              </button>
+              </Link>
             </div>
           </div>
         </div>
