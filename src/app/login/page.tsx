@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import { ThemeToggleMini } from '@/components/ThemeToggleMini'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -56,7 +57,13 @@ export default function LoginPage() {
     setIsLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: {
+        // ⚠️ 必須指向 /auth/callback 而非 /dashboard
+        // OAuth PKCE Flow 需要此路由完成 code → Session 的交換。
+        // 直接指向 /dashboard 會導致 Session 未建立，middleware 把使用者踢回 /login，
+        // 造成「需要點兩次才能登入」的 Bug。
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
     if (error) {
       setError('Google 登入失敗，請稍後再試。')
@@ -81,6 +88,21 @@ export default function LoginPage() {
           opacity: 0.04,
         }}
       />
+
+      {/* ── 主題切換微型按鈕（右上角） ── */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggleMini variant="light-card" />
+      </div>
+
+      {/* ── 版權宣告（右下角） ── */}
+      <div className="fixed bottom-5 right-6 z-50 text-right leading-tight">
+        <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+          GranTurismoEDU v1.2.0
+        </p>
+        <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+          PythaGodzillaCorp. © 2026
+        </p>
+      </div>
 
       {/* ── 登入卡片 ── */}
       <div className="relative z-10 w-full max-w-md mx-4">

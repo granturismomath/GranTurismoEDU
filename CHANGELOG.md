@@ -4,6 +4,93 @@
 
 ---
 
+## [v1.2.1] - 2026-03-17
+
+### Admin 車隊總部、Onboarding 引擎重構、全站暗黑模式 & 底盤優化
+
+#### 🛡️ Admin 車隊總部 — 防彈級 3-Tier RBAC 權限架構
+
+- 新增 `/dashboard/admin` 路由（Server Component 角色門禁：`admin` / `owner` 限定）
+- 實作 `owner → admin → user` 三層權限體系，`updateUserRole` Server Action 配備 7 層安全驗證：
+  - L1 `getUser()` JWT 驗證、L2 DB 二次確認呼叫者為 owner、L3 禁止降級 owner、L4 禁止自改身分、L5 Audit Log 寫入、L6 UPDATE 主表、L7 `revalidatePath`
+- 建立 `AdminConsole.tsx`（Client Component）三分頁儀表板：
+  - **車手名冊**：可排序用戶表格，動態 RoleSelect 下拉切換 + LockCell（admin 無法改 owner），per-row 讀取中動畫
+  - **系統稽核**：`profile_history` Audit Log 瀑布流，顯示 old_data / new_data diff
+  - **系統日誌**：4 個子分頁 — 更新版本時間軸（VERSION_LOG）、課程管理（即將上線）、學員註冊日誌（真實資料）、課程購買（即將上線）
+- Dashboard Sidebar 新增「車隊總部」Shield 圖示入口，僅 `admin` / `owner` 可見
+- Toast 通知堆疊（成功 / 失敗），`router.refresh()` 更新 Server Component 資料
+
+#### 🏎️ Onboarding 引擎 — 全面重構表單體驗
+
+- **徹底消滅原生 `<input type="date">`**，重構「出生年月日」為三欄並排 `<select>`（年 / 月 / 日）
+  - 年份：今年 -5 ~ 今年 -30（符合學齡範圍）
+  - 日期：根據選取年月動態計算天數（完整閏年 / 大小月處理）
+  - 提交時自動組合為 `YYYY-MM-DD` 寫入 DB
+- **台灣全域縣市行政區連動選單**：內建 22 縣市完整資料庫，行政區依縣市即時解鎖
+  - 提交時合併為 `台北市大安區` 格式寫入 `district` 欄位
+- 新增**性別欄位**（男 / 女），完整貫穿：`OnboardingData` 型別 → `completeOnboarding()` → `users.gender` 欄位
+- `Row 3` 改為三欄格線（縣市 / 行政區 / 學校），版面更緊湊
+- 修復 `handleSubmit` 中遺留的 `gender` 型別錯誤（PGRST204 root cause）
+
+#### 🌙 全站暗黑模式 — GT 午夜賽道質感
+
+- 建立完整 CSS 變數系統：`--background`、`--card-bg`、`--border-subtle`、`--text-primary/secondary/tertiary`、`--brand`、`--nav-active-bg`、`--nav-hover-bg`、`--dot-color`
+- **GT Midnight Blue 深色調色盤**：底層 `#131C25`、卡片 `#1C2A38`、邊框 `#2A3C50`、品牌藍 `#7FAED2`
+- 升級 `ThemeToggleMini`，新增 **`pill` 膠囊變體**：左 ☀️ 右 🌙 雙按鈕 Capsule，active 側亮底 + 陰影 highlight（亮色: amber `#F59E0B`，暗色: GT Blue `#7FAED2`）
+- `/onboarding` 頁面改用 `variant="pill"` 主題切換器
+
+#### 🏗️ 帳號資料頁面 — Onboarding 資料全線同步
+
+- `ProfileForm.tsx` 完整重構：出生年月日 / 學區連動選單與 Onboarding 100% 同構
+- 初始值智慧解析：`birthday "2000-01-15"` → `year/month/day` 分欄；`district "台北市大安區"` → `city/area` 分欄
+- 性別選單同步讀取 DB `gender` 欄位並預填，支援修改後儲存
+- `account/page.tsx` SELECT 語句加入 `gender` 欄位，props 完整透傳 `ProfileInitialData`
+- `updateUserProfile()` Audit Log 同步記錄 `gender` 在 `old_data` / `new_data` 中
+
+#### 🔧 底盤優化 — Hydration 查殺 & 路由精煉
+
+- `Navbar.tsx` 優化隱藏邏輯：`HIDDEN_ON = ['/dashboard', '/onboarding', '/login']` 陣列驅動，徹底移除 Onboarding 頁面干擾性頂部導覽列
+- 全站零 TypeScript 錯誤（`next build` 17 頁面完全通過）
+- 清除所有 `colorScheme` 原生 date input 殘留依賴
+- `next-themes` `mounted` guard 全面覆蓋，根除 SSR Hydration Mismatch
+
+#### 🗄️ DB Schema 擴充（需於 Supabase 執行）
+
+```sql
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS name                 TEXT,
+  ADD COLUMN IF NOT EXISTS grade                TEXT,
+  ADD COLUMN IF NOT EXISTS gender               TEXT,
+  ADD COLUMN IF NOT EXISTS birthday             DATE,
+  ADD COLUMN IF NOT EXISTS district             TEXT,
+  ADD COLUMN IF NOT EXISTS school               TEXT,
+  ADD COLUMN IF NOT EXISTS parent_name          TEXT,
+  ADD COLUMN IF NOT EXISTS parent_phone         TEXT,
+  ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS updated_at           TIMESTAMPTZ DEFAULT NOW();
+```
+
+#### 📦 變更檔案清單
+
+| 分類 | 檔案 |
+|------|------|
+| 新增 | `src/app/dashboard/admin/page.tsx` |
+| 新增 | `src/app/dashboard/admin/AdminConsole.tsx` |
+| 新增 | `src/app/dashboard/admin/actions.ts` |
+| 新增 | `src/app/dashboard/account/page.tsx` |
+| 新增 | `src/app/dashboard/account/ProfileForm.tsx` |
+| 新增 | `src/app/dashboard/account/actions.ts` |
+| 新增 | `src/app/onboarding/actions.ts` |
+| 新增 | `src/components/ThemeToggleMini.tsx` |
+| 新增 | `src/components/ThemeProvider.tsx` |
+| 新增 | `src/components/Navbar.tsx` |
+| 修改 | `src/app/onboarding/page.tsx` |
+| 修改 | `src/app/dashboard/layout.tsx` |
+| 修改 | `src/app/globals.css` |
+| 修改 | `src/app/layout.tsx` |
+
+---
+
 ## [v1.2.0] - 2026-03-15
 
 ### 商業閉環與史詩級展示大門 (Landing Page) 完工

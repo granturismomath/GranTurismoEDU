@@ -1,8 +1,54 @@
 @import "tailwindcss";
 
+/* ── Tailwind v4：class-based dark mode（搭配 next-themes） ── */
+@variant dark (&:where(.dark, .dark *));
+
+/* ── CSS 自訂屬性：亮色模式預設值 ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F5F5F7;
+  --foreground: #1D1D1F;
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --text-primary:   #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-tertiary:  #AEAEB2;
+  --brand: #6D97B6;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --dot-color: #1D1D1F;
+  --nav-hover-bg:  rgba(0, 0, 0, 0.04);
+  --nav-active-bg: rgba(109, 151, 182, 0.10);
+}
+
+/* ── 🌙 GT 午夜賽道 (Midnight Track) 暗色模式 ── */
+/* 以品牌藍 #6D97B6 為基底，往深處延伸的午夜藍灰調色盤 */
+.dark {
+  /* 全局底盤背景：最深的午夜藍，如夜晚賽道瀝青 */
+  --background:     #131C25;
+  --foreground:     #EEF2F6;
+
+  /* 卡片 / 元件：稍微「浮起」的深海灰藍 */
+  --card-bg:        #1C2A38;
+
+  /* 側邊欄：介於 body 與 card 之間的過渡層 */
+  --sidebar-bg:     #172030;
+  --sidebar-border: rgba(109, 151, 182, 0.12);
+
+  /* 文字層級：帶藍光的白 / 霧藍灰 / 暗淡藍灰 */
+  --text-primary:   #EEF2F6;
+  --text-secondary: #93AFC4;
+  --text-tertiary:  #4E6A80;
+
+  /* 品牌主色：稍微提亮以確保在深底上的可讀對比 */
+  --brand:          #7FAED2;
+
+  /* 邊框：極暗的藍灰描邊 */
+  --border-subtle:  #2A3C50;
+
+  /* GT 點陣底紋：低調藍灰 */
+  --dot-color:      #2A3C50;
+  --nav-hover-bg:   rgba(127, 174, 210, 0.08);
+  --nav-active-bg:  rgba(127, 174, 210, 0.14);
 }
 
 @theme inline {
@@ -12,15 +58,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 300ms;
+  transition-timing-function: ease;
 }

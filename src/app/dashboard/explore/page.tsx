@@ -1,48 +1,42 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
-
-// ── 型別定義 ──────────────────────────────────────────────────
-type Course = {
-  id: string
-  title: string
-  description: string | null
-  price: number | null
-  cover_image_url: string | null
-  created_at: string
-}
-// ─────────────────────────────────────────────────────────────
+import CourseCard, { type Course } from '@/components/CourseCard'
 
 const supabase = createClient()
 
-function formatPrice(price: number | null) {
-  if (price == null) return '洽詢價格'
-  if (price === 0) return '免費'
-  return 'NT$ ' + price.toLocaleString('zh-TW')
-}
-
-// ── 骨架卡片 ─────────────────────────────────────────────────
+// ── 骨架卡片 — 與 CourseCard 同等比例 ────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden animate-pulse">
-      <div className="h-52 bg-gray-100" />
+    <div
+      className="rounded-3xl overflow-hidden animate-pulse transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--card-bg)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: '0 2px 16px rgba(0,0,0,0.04)',
+      }}
+    >
+      <div className="h-52" style={{ backgroundColor: 'var(--border-subtle)' }} />
       <div className="p-6 space-y-3">
-        <div className="h-4 bg-gray-100 rounded-full w-3/4" />
-        <div className="h-3 bg-gray-100 rounded-full w-full" />
-        <div className="h-3 bg-gray-100 rounded-full w-2/3" />
-        <div className="h-6 bg-gray-100 rounded-full w-1/3 mt-4" />
-        <div className="h-11 bg-gray-100 rounded-2xl mt-2" />
+        <div className="h-3 rounded-full w-1/4" style={{ backgroundColor: 'var(--border-subtle)' }} />
+        <div className="h-5 rounded-full w-3/4" style={{ backgroundColor: 'var(--border-subtle)' }} />
+        <div className="h-3 rounded-full w-full" style={{ backgroundColor: 'var(--border-subtle)' }} />
+        <div className="h-3 rounded-full w-2/3" style={{ backgroundColor: 'var(--border-subtle)' }} />
+        <div className="pt-3 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <div className="h-6 rounded-full w-1/3" style={{ backgroundColor: 'var(--border-subtle)' }} />
+        </div>
+        <div className="h-11 rounded-3xl mt-1" style={{ backgroundColor: 'var(--border-subtle)' }} />
       </div>
     </div>
   )
 }
 
+// ── 主頁面 ───────────────────────────────────────────────────
 export default function ExplorePage() {
-  const [courses, setCourses]       = useState<Course[]>([])
-  const [isLoading, setIsLoading]   = useState(true)
-  const [error, setError]           = useState<string | null>(null)
+  const [courses, setCourses]     = useState<Course[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError]         = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -58,22 +52,49 @@ export default function ExplorePage() {
   }, [])
 
   return (
-    <div className="p-8">
+    <div className="px-6 py-10 md:px-10">
 
-      {/* ── 頁首 ── */}
-      <div className="mb-10">
+      {/* ════════════════════════════════════════════════════════
+          頁面 Header
+          · 大標題 + 副標題
+          · 上方小 Badge 帶閃電 icon 強調「Explore Store」
+      ════════════════════════════════════════════════════════ */}
+      <div className="mb-14">
+
+        {/* Store Badge */}
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1 mb-5 rounded-full text-[11px] font-semibold tracking-widest uppercase"
+          style={{
+            color: '#6D97B6',
+            backgroundColor: 'rgba(109,151,182,0.10)',
+            border: '1px solid rgba(109,151,182,0.20)',
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          Explore Store
+        </div>
+
+        {/* 大標題 */}
         <h1
-          className="text-2xl font-semibold tracking-tight"
-          style={{ color: '#1D1D1F' }}
+          className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight mb-3 transition-colors duration-300"
+          style={{ color: 'var(--text-primary)' }}
         >
           探索課程
         </h1>
-        <p className="text-sm mt-1" style={{ color: '#6E6E73' }}>
-          投資自己，啟動您的極速成長引擎
+
+        {/* 副標題 */}
+        <p className="text-base md:text-lg transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
+          選擇你的極速成長引擎&nbsp;
+          <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+          &nbsp;每一堂課都是超跑等級的知識升級
         </p>
       </div>
 
-      {/* ── 錯誤狀態 ── */}
+      {/* ════════════════════════════════════════════════════════
+          錯誤狀態
+      ════════════════════════════════════════════════════════ */}
       {!isLoading && error && (
         <div className="flex items-center justify-center py-24">
           <p
@@ -85,39 +106,47 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* ── 載入中：骨架屏 ── */}
+      {/* ════════════════════════════════════════════════════════
+          載入中：骨架屏 Grid
+      ════════════════════════════════════════════════════════ */}
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       )}
 
-      {/* ── 空狀態 ── */}
+      {/* ════════════════════════════════════════════════════════
+          空狀態
+      ════════════════════════════════════════════════════════ */}
       {!isLoading && !error && courses.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-32 gap-4">
+        <div className="flex flex-col items-center justify-center py-36 gap-5">
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center"
+            className="w-24 h-24 rounded-3xl flex items-center justify-center"
             style={{ backgroundColor: 'rgba(109,151,182,0.08)' }}
           >
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#6D97B6" strokeWidth="1.4">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              <line x1="11" y1="8" x2="11" y2="14"/>
-              <line x1="8" y1="11" x2="14" y2="11"/>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6D97B6" strokeWidth="1.3">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              <line x1="11" y1="8" x2="11" y2="14" />
+              <line x1="8"  y1="11" x2="14" y2="11" />
             </svg>
           </div>
           <div className="text-center">
-            <p className="text-base font-medium" style={{ color: '#3D3D3F' }}>
-              目前尚無公開的課程
+            <p className="text-base font-semibold mb-1 transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
+              目前尚無公開課程
             </p>
-            <p className="text-sm mt-1" style={{ color: '#AEAEB2' }}>
+            <p className="text-sm transition-colors duration-300" style={{ color: 'var(--text-tertiary)' }}>
               敬請期待！我們正在為您準備頂級課程內容。
             </p>
           </div>
         </div>
       )}
 
-      {/* ── 課程 Grid ── */}
+      {/* ════════════════════════════════════════════════════════
+          課程 Grid — 三欄極大間距呼吸空間
+      ════════════════════════════════════════════════════════ */}
       {!isLoading && !error && courses.length > 0 && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -125,111 +154,14 @@ export default function ExplorePage() {
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
-          <p className="mt-8 text-xs text-center" style={{ color: '#C7C7CC' }}>
-            共 {courses.length} 堂精選課程
+
+          {/* 底部課程數量標示 */}
+          <p className="mt-12 text-xs text-center transition-colors duration-300" style={{ color: 'var(--text-tertiary)' }}>
+            共&nbsp;{courses.length}&nbsp;堂精選課程
           </p>
         </>
       )}
-    </div>
-  )
-}
 
-// ── 商品卡片元件 ──────────────────────────────────────────────
-function CourseCard({ course }: { course: Course }) {
-  return (
-    <div
-      className="
-        group bg-white rounded-2xl overflow-hidden
-        shadow-sm border border-black/[0.04]
-        transition-all duration-300 ease-out
-        hover:-translate-y-1 hover:shadow-xl hover:border-black/[0.08]
-      "
-    >
-      {/* ── 封面圖區 ── */}
-      <div className="h-52 overflow-hidden bg-gray-50 relative">
-        {course.cover_image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={course.cover_image_url}
-            alt={course.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div
-            className="w-full h-full flex flex-col items-center justify-center gap-2"
-            style={{ backgroundColor: '#F5F5F7' }}
-          >
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2">
-              <circle cx="12" cy="12" r="10"/>
-              <circle cx="12" cy="12" r="3"/>
-              <line x1="12" y1="2"  x2="12" y2="9"/>
-              <line x1="12" y1="15" x2="12" y2="22"/>
-              <line x1="2"  y1="12" x2="9"  y2="12"/>
-              <line x1="15" y1="12" x2="22" y2="12"/>
-              <line x1="4.93"  y1="4.93"  x2="9.17"  y2="9.17"/>
-              <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
-              <line x1="19.07" y1="4.93"  x2="14.83" y2="9.17"/>
-              <line x1="9.17"  y1="14.83" x2="4.93"  y2="19.07"/>
-            </svg>
-          </div>
-        )}
-
-        {/* 免費課程角標 */}
-        {course.price === 0 && (
-          <div
-            className="absolute top-3 left-3 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full"
-            style={{ backgroundColor: '#34C759', color: '#fff' }}
-          >
-            FREE
-          </div>
-        )}
-      </div>
-
-      {/* ── 內容區 ── */}
-      <div className="p-6 flex flex-col gap-3">
-
-        {/* 課程名稱 */}
-        <h2
-          className="text-base font-semibold leading-snug tracking-tight"
-          style={{ color: '#1D1D1F' }}
-        >
-          {course.title}
-        </h2>
-
-        {/* 課程簡介 */}
-        {course.description && (
-          <p
-            className="text-sm leading-relaxed line-clamp-2"
-            style={{ color: '#6E6E73' }}
-          >
-            {course.description}
-          </p>
-        )}
-
-        {/* 價格 */}
-        <div className="flex items-baseline gap-1 mt-1">
-          <span
-            className="text-xl font-bold tabular-nums tracking-tight"
-            style={{ color: course.price === 0 ? '#34C759' : '#6D97B6' }}
-          >
-            {formatPrice(course.price)}
-          </span>
-        </div>
-
-        {/* 查看詳情按鈕 */}
-        <Link
-          href={`/dashboard/explore/${course.id}`}
-          className="
-            block w-full mt-1 py-3 rounded-2xl text-sm font-semibold text-white text-center
-            transition-all duration-200
-            hover:brightness-110 hover:shadow-md hover:-translate-y-0.5
-            active:brightness-95 active:translate-y-0
-          "
-          style={{ backgroundColor: '#6D97B6' }}
-        >
-          查看課程詳情
-        </Link>
-      </div>
     </div>
   )
 }
