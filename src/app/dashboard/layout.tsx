@@ -125,6 +125,7 @@ const PARENT_NAV: NavItem[] = [
 const NAV_BY_ROLE: Record<string, NavItem[]> = {
   owner:   OWNER_NAV,
   admin:   ADMIN_NAV,
+  user:    STUDENT_NAV,   // 一般車手：探索課程 + 我的課程，不含車隊總部
   student: STUDENT_NAV,
   parent:  PARENT_NAV,
 }

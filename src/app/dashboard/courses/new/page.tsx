@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-
-const supabase = createClient()
+import { createCourse } from './actions'
 
 const inputClass = `
   w-full px-5 py-3.5 rounded-2xl text-sm
@@ -17,16 +16,17 @@ const inputClass = `
 const labelClass = 'block text-xs font-medium tracking-widest uppercase mb-2'
 
 export default function NewCoursePage() {
-  const router      = useRouter()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router          = useRouter()
+  const fileInputRef    = useRef<HTMLInputElement>(null)
+  const [isPending, startTransition] = useTransition()
 
   const [title, setTitle]               = useState('')
   const [description, setDescription]   = useState('')
+  const [subject, setSubject]           = useState('')
   const [price, setPrice]               = useState('')
   const [status, setStatus]             = useState<'draft' | 'published'>('draft')
   const [coverFile, setCoverFile]       = useState<File | null>(null)
   const [previewUrl, setPreviewUrl]     = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError]               = useState<string | null>(null)
 
   // ── 選擇圖片 ──
@@ -34,7 +34,6 @@ export default function NewCoursePage() {
     const file = e.target.files?.[0] ?? null
     if (!file) return
     setCoverFile(file)
-    // 產生本地預覽 URL（舊的記得 revoke 以免記憶體洩漏）
     setPreviewUrl(prev => {
       if (prev) URL.revokeObjectURL(prev)
       return URL.createObjectURL(file)
@@ -49,27 +48,26 @@ export default function NewCoursePage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ── 送出表單 ──
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── 送出表單（方案 A：useTransition）──
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // 必填驗證
-    if (!title.trim()) {
-      setError('請輸入課程名稱。')
-      return
-    }
+    // Client-side 快速驗證（Server Action 仍有二次驗證）
+    if (!title.trim()) { setError('請輸入課程名稱。'); return }
+    if (!subject)      { setError('請選擇學科。');    return }
     if (!price || isNaN(Number(price)) || Number(price) < 0) {
       setError('請輸入有效的課程售價。')
       return
     }
 
-    setIsSubmitting(true)
-    try {
+    // ── startTransition：整個操作在背景執行，UI 保持回應 ──
+    startTransition(async () => {
       let coverImageUrl: string | null = null
 
-      // ── 上傳封面（若有選擇）──
+      // 封面上傳需在 Client 端執行（Supabase Storage 直傳）
       if (coverFile) {
+        const supabase = createClient()
         const fileExt  = coverFile.name.split('.').pop()
         const filePath = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
 
@@ -89,27 +87,22 @@ export default function NewCoursePage() {
         coverImageUrl = urlData.publicUrl
       }
 
-      // ── 寫入課程資料 ──
-      const { error: insertError } = await supabase
-        .from('courses')
-        .insert([{
-          title:             title.trim(),
-          description:       description.trim() || null,
-          price:             Number(price),
-          status,
-          cover_image_url:   coverImageUrl,
-        }])
+      // 組裝 FormData，交給 Server Action 做資料庫寫入
+      const formData = new FormData()
+      formData.set('title',           title.trim())
+      formData.set('description',     description.trim())
+      formData.set('subject',         subject)
+      formData.set('price',           price)
+      formData.set('status',          status)
+      if (coverImageUrl) formData.set('cover_image_url', coverImageUrl)
 
-      if (insertError) {
-        setError('課程建立失敗，請稍後再試。')
-        return
+      const result = await createCourse(formData)
+
+      if (!result.success) {
+        setError(result.error ?? '建立失敗，請稍後再試。')
+        // 成功時 Server Action 內的 redirect() 自動跳頁
       }
-
-      router.push('/dashboard/courses')
-      router.refresh()
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   return (
@@ -153,7 +146,6 @@ export default function NewCoursePage() {
               課程封面
             </label>
 
-            {/* 隱藏的 file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -163,16 +155,9 @@ export default function NewCoursePage() {
             />
 
             {previewUrl ? (
-              /* 已選擇圖片：顯示預覽 */
               <div className="relative w-full h-56 rounded-2xl overflow-hidden bg-gray-100">
-                {/* 強制使用原生 <img>，避免 Next.js Image 無法處理 blob: URL */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl}
-                  alt="封面預覽"
-                  className="w-full h-full object-cover"
-                />
-                {/* 更換圖片按鈕 */}
+                <img src={previewUrl} alt="封面預覽" className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -190,7 +175,6 @@ export default function NewCoursePage() {
                   </svg>
                   更換圖片
                 </button>
-                {/* 移除封面按鈕 */}
                 <button
                   type="button"
                   onClick={handleClearCover}
@@ -208,7 +192,6 @@ export default function NewCoursePage() {
                 </button>
               </div>
             ) : (
-              /* 未選擇圖片：點擊 / 拖曳上傳區 */
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -227,12 +210,8 @@ export default function NewCoursePage() {
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
                 <div className="text-center">
-                  <p className="text-sm font-medium" style={{ color: '#6E6E73' }}>
-                    點擊上傳課程封面
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: '#AEAEB2' }}>
-                    建議比例 16:9，JPG / PNG / WEBP
-                  </p>
+                  <p className="text-sm font-medium" style={{ color: '#6E6E73' }}>點擊上傳課程封面</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#AEAEB2' }}>建議比例 16:9，JPG / PNG / WEBP</p>
                 </div>
               </button>
             )}
@@ -255,9 +234,7 @@ export default function NewCoursePage() {
 
           {/* 課程簡介 */}
           <div>
-            <label className={labelClass} style={{ color: '#6E6E73' }}>
-              課程簡介
-            </label>
+            <label className={labelClass} style={{ color: '#6E6E73' }}>課程簡介</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -268,18 +245,34 @@ export default function NewCoursePage() {
             />
           </div>
 
+          {/* 學科 */}
+          <div>
+            <label className={labelClass} style={{ color: '#6E6E73' }}>
+              學科 <span style={{ color: '#FF3B30' }}>*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
+                className={`${inputClass} appearance-none cursor-pointer pr-10`}
+                style={{ color: subject ? '#1D1D1F' : '#C7C7CC' }}
+              >
+                <option value="" disabled>請選擇學科</option>
+                <option value="math">📐 數學</option>
+                <option value="chinese">📚 國文</option>
+                <option value="english">🔤 英文</option>
+              </select>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs" style={{ color: '#AEAEB2' }}>▼</span>
+            </div>
+          </div>
+
           {/* 課程售價 */}
           <div>
             <label className={labelClass} style={{ color: '#6E6E73' }}>
               課程售價 <span style={{ color: '#FF3B30' }}>*</span>
             </label>
             <div className="relative">
-              <span
-                className="absolute left-5 top-1/2 -translate-y-1/2 text-sm select-none"
-                style={{ color: '#AEAEB2' }}
-              >
-                NT$
-              </span>
+              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-sm select-none" style={{ color: '#AEAEB2' }}>NT$</span>
               <input
                 type="number"
                 min="0"
@@ -294,9 +287,7 @@ export default function NewCoursePage() {
 
           {/* 發布狀態 */}
           <div>
-            <label className={labelClass} style={{ color: '#6E6E73' }}>
-              發布狀態
-            </label>
+            <label className={labelClass} style={{ color: '#6E6E73' }}>發布狀態</label>
             <div className="relative">
               <select
                 value={status}
@@ -307,43 +298,36 @@ export default function NewCoursePage() {
                 <option value="draft">草稿（Draft）</option>
                 <option value="published">立即發布（Published）</option>
               </select>
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs" style={{ color: '#AEAEB2' }}>
-                ▼
-              </span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs" style={{ color: '#AEAEB2' }}>▼</span>
             </div>
           </div>
 
           {/* 錯誤提示 */}
           {error && (
-            <p
-              className="text-xs px-4 py-2.5 rounded-2xl"
-              style={{ color: '#FF3B30', backgroundColor: 'rgba(255,59,48,0.08)' }}
-            >
+            <p className="text-xs px-4 py-2.5 rounded-2xl" style={{ color: '#FF3B30', backgroundColor: 'rgba(255,59,48,0.08)' }}>
               {error}
             </p>
           )}
 
-          {/* ── 底部按鈕區（靠右對齊）── */}
+          {/* ── 底部按鈕區 ── */}
           <div className="flex items-center justify-end gap-3 pt-2">
-
-            {/* 取消 */}
             <button
               type="button"
               onClick={() => router.back()}
+              disabled={isPending}
               className="
                 px-5 py-2.5 rounded-2xl text-sm font-medium
-                transition-all duration-150
-                hover:bg-black/[0.04]
+                transition-all duration-150 hover:bg-black/[0.04]
+                disabled:opacity-50 disabled:cursor-not-allowed
               "
               style={{ color: '#8E8E93' }}
             >
               取消
             </button>
 
-            {/* 建立課程 */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isPending}
               className="
                 flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-semibold text-white
                 transition-all duration-200
@@ -354,22 +338,15 @@ export default function NewCoursePage() {
               "
               style={{ backgroundColor: '#6D97B6' }}
             >
-              {isSubmitting ? (
+              {isPending ? (
                 <>
-                  <svg
-                    className="animate-spin h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
                   上傳與建立中…
                 </>
-              ) : (
-                '建立課程'
-              )}
+              ) : '建立課程'}
             </button>
           </div>
 
