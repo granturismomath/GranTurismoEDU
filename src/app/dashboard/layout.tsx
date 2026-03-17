@@ -103,13 +103,13 @@ const ADMIN_CONSOLE_NAV: NavItem = {
 }
 
 const OWNER_NAV: NavItem[] = [
-  { label: '學員管理', href: '/dashboard/students', icon: <IconUsers /> },
-  { label: '課程上架', href: '/dashboard/courses',  icon: <IconUpload /> },
+  { label: '車手名冊', href: '/dashboard/admin/users', icon: <IconUsers /> },
+  { label: '課程上架', href: '/dashboard/courses',     icon: <IconUpload /> },
   ADMIN_CONSOLE_NAV,
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { label: '學員管理', href: '/dashboard/students', icon: <IconUsers /> },
+  { label: '車手名冊', href: '/dashboard/admin/users', icon: <IconUsers /> },
   ADMIN_CONSOLE_NAV,
 ]
 
@@ -280,13 +280,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* ── 導覽選單（帳號資料置頂） ── */}
         <nav className="flex-1 px-3 space-y-0.5 pb-2">
-          {navItems.map(item => (
-            <NavLink
-              key={item.href}
-              item={item}
-              isActive={pathname.startsWith(item.href)}
-            />
-          ))}
+          {navItems.map(item => {
+            // 精確匹配：以「最長吻合路徑」為優先，避免父路徑與子路徑同時高亮
+            const matches = (href: string) =>
+              pathname === href || pathname.startsWith(href + '/')
+            const isActive =
+              matches(item.href) &&
+              !navItems.some(
+                other =>
+                  other.href !== item.href &&
+                  other.href.length > item.href.length &&
+                  matches(other.href),
+              )
+            return (
+              <NavLink
+                key={item.href}
+                item={item}
+                isActive={isActive}
+              />
+            )
+          })}
         </nav>
 
         {/* ── 底部分隔線 ── */}
