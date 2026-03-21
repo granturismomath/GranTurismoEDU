@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { createClient } from '@/utils/supabase/server'
+import CourseCard, { type Course } from '@/components/CourseCard'
 
 // ── 功能特色資料 ────────────────────────────────────────────────────────────
 const FEATURES = [
@@ -42,7 +44,27 @@ const STATS = [
   { num: '98%',     label: '好評推薦' },
 ]
 
-export default function LandingPage() {
+// ── Server Component：從 Supabase 取得精選課程 ────────────────────────────
+async function getFeaturedCourses(): Promise<Course[]> {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(6)
+    if (error) return []
+    return (data ?? []) as Course[]
+  } catch {
+    return []
+  }
+}
+
+// ── 頁面主體 ─────────────────────────────────────────────────────────────────
+export default async function LandingPage() {
+  const courses = await getFeaturedCourses()
+
   return (
     <div className="min-h-screen font-sans">
 
@@ -67,14 +89,13 @@ export default function LandingPage() {
           }}
         />
 
-        {/* ── v1.2.0 上線 Badge ── */}
+        {/* ── v1.4.1 上線 Badge ── */}
         <div className="
           relative inline-flex items-center gap-2
           px-4 py-1.5 mb-10 rounded-full
           text-xs font-medium tracking-wide
           border border-[#6D97B6]/25
           bg-[#6D97B6]/[0.08] text-[#6D97B6]
-          animate-pulse-slow
         ">
           {/* 呼吸燈點 */}
           <span className="relative flex h-1.5 w-1.5">
@@ -84,7 +105,7 @@ export default function LandingPage() {
             " />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#6D97B6]" />
           </span>
-          v1.2.0&nbsp;·&nbsp;系統全面上線
+          v1.4.1&nbsp;·&nbsp;系統全面上線
         </div>
 
         {/* ── 震撼大標題 ── */}
@@ -173,6 +194,91 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════════════════
+          FEATURED COURSES SECTION
+          · Server Component 動態從 Supabase 讀取最新上架課程
+          · 響應式 Grid：1 欄（手機）→ 2 欄（平板）→ 3 欄（桌機）
+          · 無課程時優雅隱藏整區塊
+      ══════════════════════════════════════════════════════════════ */}
+      {courses.length > 0 && (
+        <section className="px-6 py-24" style={{ backgroundColor: '#F5F5F7' }}>
+          <div className="max-w-6xl mx-auto">
+
+            {/* ── 區塊標題 ── */}
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-14">
+              <div>
+                {/* 賽道 Badge */}
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-1 mb-4 rounded-full text-[11px] font-semibold tracking-widest uppercase"
+                  style={{
+                    color: '#6D97B6',
+                    backgroundColor: 'rgba(109,151,182,0.10)',
+                    border: '1px solid rgba(109,151,182,0.20)',
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                  Featured Courses
+                </div>
+                <h2 className="text-4xl font-extrabold tracking-tight text-[#1D1D1F]">
+                  熱門精選課程
+                </h2>
+                <p className="mt-2 text-base text-[#6E6E73]">
+                  頂尖導師親自挑選，每堂都是超跑等級的知識升級
+                </p>
+              </div>
+
+              {/* 查看全部 */}
+              <Link
+                href="/dashboard/explore"
+                className="
+                  inline-flex items-center gap-1.5 shrink-0
+                  text-sm font-semibold text-[#6D97B6]
+                  hover:opacity-70
+                  transition-opacity duration-200
+                "
+              >
+                查看全部課程
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* ── 課程 Grid ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {courses.map(course => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+
+            {/* ── 底部導引 CTA ── */}
+            <div className="mt-14 text-center">
+              <Link
+                href="/dashboard/explore"
+                className="
+                  inline-flex items-center gap-2
+                  px-8 py-4 rounded-3xl
+                  text-sm font-semibold text-[#6D97B6]
+                  border border-[#6D97B6]/30
+                  bg-white
+                  hover:-translate-y-0.5 hover:shadow-lg hover:border-[#6D97B6]/50
+                  transition-all duration-300 ease-out
+                  active:translate-y-0
+                "
+              >
+                探索更多課程
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </Link>
+            </div>
+
+          </div>
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
           FEATURES SECTION
       ══════════════════════════════════════════════════════════════ */}
       <section id="features" className="px-6 py-28" style={{ backgroundColor: 'rgba(0,0,0,0.018)' }}>
@@ -220,35 +326,46 @@ export default function LandingPage() {
       ══════════════════════════════════════════════════════════════ */}
       <section className="px-6 py-28">
         <div
-          className="max-w-4xl mx-auto rounded-3xl text-center px-8 py-20"
+          className="max-w-4xl mx-auto rounded-3xl text-center px-8 py-20 relative overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, #6D97B6 0%, #4A7FA5 100%)',
             boxShadow: '0 20px 60px rgba(109,151,182,0.30)',
           }}
         >
-          <h2 className="text-4xl font-bold tracking-tight text-white mb-4">
-            準備好了嗎？
-          </h2>
-          <p className="text-lg mb-10" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            立即加入數千位頂尖學員，展開您的極速成長之旅。
-          </p>
-          <Link
-            href="/login"
-            className="
-              inline-flex items-center gap-2
-              px-8 py-4 rounded-3xl
-              text-base font-semibold bg-white
-              hover:-translate-y-1 hover:shadow-xl
-              transition-all duration-300 ease-out
-              active:translate-y-0
-            "
-            style={{ color: '#4A7FA5' }}
-          >
-            免費開始使用
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </Link>
+          {/* 底部方格旗裝飾 */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                'repeating-conic-gradient(rgba(255,255,255,0.06) 0% 25%, transparent 0% 50%)',
+              backgroundSize: '20px 20px',
+            }}
+          />
+          <div className="relative z-10">
+            <h2 className="text-4xl font-bold tracking-tight text-white mb-4">
+              準備好了嗎？
+            </h2>
+            <p className="text-lg mb-10" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              立即加入數千位頂尖學員，展開您的極速成長之旅。
+            </p>
+            <Link
+              href="/login"
+              className="
+                inline-flex items-center gap-2
+                px-8 py-4 rounded-3xl
+                text-base font-semibold bg-white
+                hover:-translate-y-1 hover:shadow-xl
+                transition-all duration-300 ease-out
+                active:translate-y-0
+              "
+              style={{ color: '#4A7FA5' }}
+            >
+              免費開始使用
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </section>
 
