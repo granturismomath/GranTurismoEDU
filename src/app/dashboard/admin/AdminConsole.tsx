@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { UserRow, AuditRow } from './page'
+import type { UserRow, AuditRow } from './types'
 import { updateUserRole, type MutableRole } from './actions'
 
 // ── RBAC 輔助 ─────────────────────────────────────────────────
