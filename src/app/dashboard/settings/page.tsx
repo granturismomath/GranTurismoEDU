@@ -84,7 +84,7 @@ function ThemeBtn({ value, label, desc, icon, selected, onSelect }: {
 }) {
   return (
     <button onClick={onSelect}
-      className="relative flex-1 min-w-[120px] flex flex-col gap-3 p-5 rounded-3xl text-left transition-all duration-300"
+      className="relative flex-1 min-w-0 sm:min-w-[120px] flex flex-col gap-3 p-4 sm:p-5 rounded-3xl text-left transition-all duration-300"
       style={{
         backgroundColor: selected ? 'var(--nav-active-bg)' : 'var(--background)',
         border: selected ? '2px solid var(--brand)' : '2px solid var(--border-subtle)',
@@ -125,7 +125,7 @@ function SectionCard({ icon, title, subtitle, children }: {
   icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode
 }) {
   return (
-    <section className="rounded-3xl p-8 transition-colors duration-300"
+    <section className="rounded-3xl p-5 sm:p-8 transition-colors duration-300"
       style={{
         backgroundColor: 'var(--card-bg)',
         border: '1px solid var(--border-subtle)',
@@ -155,7 +155,7 @@ function Toast({ message, type, onDone }: { message: string; type: 'success' | '
   }, [onDone])
   const ok = type === 'success'
   return (
-    <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300"
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-8 sm:right-8 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300"
       style={{
         backgroundColor: ok ? 'var(--card-bg)' : '#2A1C1C',
         border: `1px solid ${ok ? 'var(--border-subtle)' : '#4A2020'}`,
@@ -289,7 +289,7 @@ export default function SettingsPage() {
   const initials = (userName || '?').slice(0, 1).toUpperCase()
 
   return (
-    <div className="p-8 max-w-3xl space-y-8">
+    <div className="p-4 sm:p-8 max-w-3xl space-y-6 sm:space-y-8">
 
       {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
@@ -300,7 +300,7 @@ export default function SettingsPage() {
           style={{ backgroundColor: 'var(--nav-active-bg)', color: 'var(--brand)' }}>
           Settings
         </span>
-        <h1 className="text-3xl font-bold tracking-tight transition-colors duration-300"
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight transition-colors duration-300"
           style={{ color: 'var(--text-primary)' }}>
           系統設定
         </h1>
@@ -323,7 +323,7 @@ export default function SettingsPage() {
         title="頭像設定"
         subtitle="上傳你的專屬車手照片"
       >
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
           {/* 頭像預覽 */}
           <div className="relative group">
             {avatarUrl ? (
@@ -359,7 +359,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 text-center sm:text-left">
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={avatarLoading}
@@ -457,7 +457,7 @@ export default function SettingsPage() {
       >
         {mounted ? (
           <>
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               {THEMES.map(t => (
                 <ThemeBtn key={t.value} {...t}
                   selected={theme === t.value}

@@ -198,6 +198,22 @@ function UserAvatar({ name, avatarUrl, size = 36 }: { name: string; avatarUrl?: 
   )
 }
 
+// ── 漢堡圖示 ──
+const IconMenu = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+)
+
+const IconClose = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+)
+
 // ────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter()
@@ -209,8 +225,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
   const [ready, setReady]             = useState(false)
   const [mounted, setMounted]         = useState(false)   // 防止 dark mode logo hydration mismatch
+  const [sidebarOpen, setSidebarOpen] = useState(false)    // 手機版側邊欄開關
 
   const { resolvedTheme } = useTheme()
+
+  // 路由切換時自動收起手機版側邊欄
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     setMounted(true)
@@ -251,40 +273,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // logo-dark.png → 透明/深色版（暗色模式）
   const logoSrc = mounted && resolvedTheme === 'dark' ? '/logo-dark.png' : '/logo.png'
 
-  // ── 骨架 ──
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen transition-colors duration-300"
-        style={{ backgroundColor: 'var(--background)' }}
-      >
-        <aside
-          className="w-64 shrink-0"
-          style={{
-            backgroundColor: 'var(--sidebar-bg)',
-            boxShadow: '1px 0 0 0 var(--sidebar-border)',
-          }}
-        />
-        <main className="flex-1" />
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="flex min-h-screen transition-colors duration-300"
-      style={{ backgroundColor: 'var(--background)' }}
-    >
-      {/* ── 左側 Sidebar ── */}
-      <aside
-        className="w-64 shrink-0 flex flex-col sticky top-0 h-screen overflow-y-auto transition-colors duration-300"
-        style={{
-          backgroundColor: 'var(--sidebar-bg)',
-          boxShadow: '1px 0 0 0 var(--sidebar-border)',
-        }}
-      >
-        {/* ── Logo 區：大器置中 ── */}
+  // ── 側邊欄內容（桌面 & 手機共用）──
+  const sidebarContent = (
+    <>
+        {/* ── Logo 區：大器置中（手機版已有頂部 Logo，此處隱藏） ── */}
         <div
-          className="flex w-full justify-center items-center pt-7 pb-6"
+          className="hidden md:flex w-full justify-center items-center pt-7 pb-6"
           style={{ borderBottom: '1px solid var(--sidebar-border)' }}
         >
           <Link href="/dashboard/explore" className="block w-[85%]">
@@ -409,12 +403,102 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             PythaGodzillaCorp. © 2026
           </p>
         </div>
+    </>
+  )
 
+  // ── 骨架 ──
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen transition-colors duration-300"
+        style={{ backgroundColor: 'var(--background)' }}
+      >
+        <aside
+          className="hidden md:block w-64 shrink-0"
+          style={{
+            backgroundColor: 'var(--sidebar-bg)',
+            boxShadow: '1px 0 0 0 var(--sidebar-border)',
+          }}
+        />
+        <main className="flex-1" />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="flex min-h-screen transition-colors duration-300"
+      style={{ backgroundColor: 'var(--background)' }}
+    >
+      {/* ── 手機版頂部導覽列 ── */}
+      <div
+        className="fixed top-0 left-0 right-0 z-40 flex md:hidden items-center justify-between px-4 h-14"
+        style={{
+          backgroundColor: 'var(--sidebar-bg)',
+          boxShadow: '0 1px 0 0 var(--sidebar-border)',
+        }}
+      >
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {sidebarOpen ? <IconClose /> : <IconMenu />}
+        </button>
+        <Link href="/dashboard/explore" className="block h-8">
+          <Image
+            src={logoSrc}
+            alt="超跑教育 Logo"
+            width={160}
+            height={48}
+            className="h-full w-auto object-contain"
+            priority
+          />
+        </Link>
+        <UserAvatar
+          name={userName || (userEmail ? userEmail.split('@')[0] : '?')}
+          avatarUrl={avatarUrl}
+          size={32}
+        />
+      </div>
+
+      {/* ── 手機版側邊欄遮罩 ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 md:hidden"
+          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── 手機版滑出側邊欄 ── */}
+      <aside
+        className={`
+          fixed top-14 left-0 bottom-0 z-50 w-72 flex flex-col overflow-y-auto
+          transition-transform duration-300 ease-in-out md:hidden
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        style={{
+          backgroundColor: 'var(--sidebar-bg)',
+          boxShadow: sidebarOpen ? '4px 0 24px rgba(0,0,0,0.15)' : 'none',
+        }}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* ── 桌面版固定側邊欄 ── */}
+      <aside
+        className="hidden md:flex w-64 shrink-0 flex-col sticky top-0 h-screen overflow-y-auto transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--sidebar-bg)',
+          boxShadow: '1px 0 0 0 var(--sidebar-border)',
+        }}
+      >
+        {sidebarContent}
       </aside>
 
       {/* ── 右側主內容區 ── */}
       <main
-        className="flex-1 min-w-0 overflow-y-auto transition-colors duration-300"
+        className="flex-1 min-w-0 overflow-y-auto transition-colors duration-300 pt-14 md:pt-0"
         style={{ backgroundColor: 'var(--background)' }}
       >
         <div className="max-w-5xl mx-auto w-full">
