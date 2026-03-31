@@ -1,7 +1,8 @@
 'use client'
 
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { createClient } from '@/utils/supabase/client'
 
 // ── Icons ──
 const IconSun = () => (
@@ -70,11 +71,11 @@ function MiniPreview({ themeValue }: { themeValue: string }) {
   )
 }
 
-// ── 主題選項按鈕 ──
+// ── 主題選項 ──
 const THEMES = [
-  { value: 'light',  label: '日間模式',  desc: '明亮賽道',    icon: <IconSun /> },
-  { value: 'dark',   label: '午夜賽道',  desc: '品牌藍艙',    icon: <IconMoon /> },
-  { value: 'system', label: '跟隨系統',  desc: '自動切換',    icon: <IconMonitor /> },
+  { value: 'light',  label: '日間模式', desc: '明亮賽道', icon: <IconSun /> },
+  { value: 'dark',   label: '午夜賽道', desc: '品牌藍艙', icon: <IconMoon /> },
+  { value: 'system', label: '跟隨系統', desc: '自動切換', icon: <IconMonitor /> },
 ]
 
 function ThemeBtn({ value, label, desc, icon, selected, onSelect }: {
@@ -119,17 +120,182 @@ function ThemeBtn({ value, label, desc, icon, selected, onSelect }: {
   )
 }
 
+// ── Section Card 共用外殼 ──
+function SectionCard({ icon, title, subtitle, children }: {
+  icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-3xl p-8 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--card-bg)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
+      }}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: 'var(--nav-active-bg)', color: 'var(--brand)' }}>
+          {icon}
+        </div>
+        <div>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{subtitle}</p>
+        </div>
+      </div>
+      <div className="mb-6" style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+      {children}
+    </section>
+  )
+}
+
+// ── Toast ──
+function Toast({ message, type, onDone }: { message: string; type: 'success' | 'error'; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3000)
+    return () => clearTimeout(t)
+  }, [onDone])
+  const ok = type === 'success'
+  return (
+    <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300"
+      style={{
+        backgroundColor: ok ? 'var(--card-bg)' : '#2A1C1C',
+        border: `1px solid ${ok ? 'var(--border-subtle)' : '#4A2020'}`,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+      }}>
+      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+        style={{ backgroundColor: ok ? 'rgba(52,199,89,0.15)' : 'rgba(255,59,48,0.15)' }}>
+        {ok ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        )}
+      </div>
+      <p className="text-sm font-medium" style={{ color: ok ? 'var(--text-primary)' : '#FFB3B0' }}>{message}</p>
+    </div>
+  )
+}
+
 // ── 主頁面 ──
 export default function SettingsPage() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const supabase = createClient()
+
+  // Toast
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  // Password
+  const [newPassword, setNewPassword]       = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pwLoading, setPwLoading]           = useState(false)
+
+  // Avatar
+  const [avatarUrl, setAvatarUrl]   = useState<string | null>(null)
+  const [userName, setUserName]     = useState('')
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+    // 載入目前的頭像和名字
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return
+      const { data: profile } = await supabase
+        .from('users')
+        .select('name, avatar_url')
+        .eq('id', data.user.id)
+        .single()
+      if (profile?.avatar_url) setAvatarUrl(profile.avatar_url)
+      if (profile?.name) setUserName(profile.name)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── 更改密碼 ──
+  const handlePasswordChange = async () => {
+    if (newPassword.length < 6) {
+      setToast({ message: '密碼長度至少 6 個字元', type: 'error' })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setToast({ message: '兩次密碼輸入不一致', type: 'error' })
+      return
+    }
+    setPwLoading(true)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setPwLoading(false)
+    if (error) {
+      setToast({ message: error.message, type: 'error' })
+    } else {
+      setToast({ message: '密碼更新成功！', type: 'success' })
+      setNewPassword('')
+      setConfirmPassword('')
+    }
+  }
+
+  // ── 上傳頭像 ──
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 限制 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      setToast({ message: '檔案大小不可超過 2MB', type: 'error' })
+      return
+    }
+
+    setAvatarLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setAvatarLoading(false)
+      return
+    }
+
+    const ext = file.name.split('.').pop()
+    const filePath = `${user.id}/avatar.${ext}`
+
+    // 上傳至 Supabase Storage (avatars bucket)
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true })
+
+    if (uploadError) {
+      setAvatarLoading(false)
+      setToast({ message: '頭像上傳失敗：' + uploadError.message, type: 'error' })
+      return
+    }
+
+    // 取得公開 URL
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    const publicUrl = urlData.publicUrl + '?t=' + Date.now()
+
+    // 更新 users 表
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ avatar_url: publicUrl })
+      .eq('id', user.id)
+
+    setAvatarLoading(false)
+    if (updateError) {
+      setToast({ message: '頭像更新失敗', type: 'error' })
+    } else {
+      setAvatarUrl(publicUrl)
+      setToast({ message: '頭像更新成功！', type: 'success' })
+    }
+  }
+
+  const initials = (userName || '?').slice(0, 1).toUpperCase()
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8 max-w-3xl space-y-8">
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* 頁首 */}
-      <div className="mb-10">
+      <div className="mb-2">
         <span className="inline-block text-[10px] font-semibold tracking-[0.15em] uppercase px-3 py-1 rounded-full mb-4"
           style={{ backgroundColor: 'var(--nav-active-bg)', color: 'var(--brand)' }}>
           Settings
@@ -144,31 +310,151 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* 外觀設定卡片 */}
-      <section className="rounded-3xl p-8 transition-colors duration-300"
-        style={{
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
-        }}
+      {/* ══════════════════════════════════════
+          1. 頭像設定
+      ══════════════════════════════════════ */}
+      <SectionCard
+        icon={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        }
+        title="頭像設定"
+        subtitle="上傳你的專屬車手照片"
       >
-        {/* 標題列 */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: 'var(--nav-active-bg)', color: 'var(--brand)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
+        <div className="flex items-center gap-6">
+          {/* 頭像預覽 */}
+          <div className="relative group">
+            {avatarUrl ? (
+              <div
+                className="w-20 h-20 rounded-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${avatarUrl})` }}
+              />
+            ) : (
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold"
+                style={{ backgroundColor: 'var(--nav-active-bg)', color: 'var(--brand)' }}
+              >
+                {initials}
+              </div>
+            )}
+            {/* hover overlay */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
           </div>
-          <div>
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>外觀設定</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>選擇最適合你駕駛風格的介面主題</p>
+
+          <div className="space-y-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarLoading}
+              className="px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
+              style={{
+                backgroundColor: 'var(--brand)',
+                color: 'white',
+              }}
+            >
+              {avatarLoading ? '上傳中...' : '選擇照片'}
+            </button>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              支援 JPG、PNG，檔案大小上限 2MB
+            </p>
           </div>
         </div>
+      </SectionCard>
 
-        <div className="mb-6" style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+      {/* ══════════════════════════════════════
+          2. 更改密碼
+      ══════════════════════════════════════ */}
+      <SectionCard
+        icon={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        }
+        title="更改密碼"
+        subtitle="定期更換密碼以確保帳號安全"
+      >
+        <div className="space-y-4 max-w-md">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium tracking-widest uppercase"
+              style={{ color: 'var(--text-tertiary)' }}>
+              新密碼
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="至少 6 個字元"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all duration-200 focus:ring-2"
+              style={{
+                backgroundColor: 'var(--background)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium tracking-widest uppercase"
+              style={{ color: 'var(--text-tertiary)' }}>
+              確認新密碼
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="再輸入一次新密碼"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all duration-200 focus:ring-2"
+              style={{
+                backgroundColor: 'var(--background)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          <button
+            onClick={handlePasswordChange}
+            disabled={pwLoading || !newPassword}
+            className="px-6 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 disabled:hover:translate-y-0"
+            style={{
+              backgroundColor: 'var(--brand)',
+              color: 'white',
+            }}
+          >
+            {pwLoading ? '更新中...' : '更新密碼'}
+          </button>
+        </div>
+      </SectionCard>
 
+      {/* ══════════════════════════════════════
+          3. 外觀設定
+      ══════════════════════════════════════ */}
+      <SectionCard
+        icon={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        }
+        title="外觀設定"
+        subtitle="選擇最適合你駕駛風格的介面主題"
+      >
         {mounted ? (
           <>
             <div className="flex gap-4 flex-wrap">
@@ -199,7 +485,7 @@ export default function SettingsPage() {
             ))}
           </div>
         )}
-      </section>
+      </SectionCard>
 
     </div>
   )

@@ -165,16 +165,50 @@ function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
   )
 }
 
+// ── 使用者頭像組件 ──────────────────────────────────────────
+function UserAvatar({ name, avatarUrl, size = 36 }: { name: string; avatarUrl?: string | null; size?: number }) {
+  const initials = (name || '?').slice(0, 1).toUpperCase()
+
+  if (avatarUrl) {
+    return (
+      <div
+        className="rounded-full overflow-hidden shrink-0 bg-cover bg-center"
+        style={{
+          width: size,
+          height: size,
+          backgroundImage: `url(${avatarUrl})`,
+        }}
+      />
+    )
+  }
+
+  return (
+    <div
+      className="rounded-full flex items-center justify-center shrink-0 font-bold transition-colors duration-300"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: 'var(--nav-active-bg)',
+        color: 'var(--brand)',
+        fontSize: size * 0.4,
+      }}
+    >
+      {initials}
+    </div>
+  )
+}
+
 // ────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter()
   const pathname = usePathname()
 
-  const [role, setRole]           = useState<string>('student')
-  const [userName, setUserName]   = useState<string>('')
-  const [userEmail, setUserEmail] = useState<string>('')
-  const [ready, setReady]         = useState(false)
-  const [mounted, setMounted]     = useState(false)   // 防止 dark mode logo hydration mismatch
+  const [role, setRole]               = useState<string>('student')
+  const [userName, setUserName]       = useState<string>('')
+  const [userEmail, setUserEmail]     = useState<string>('')
+  const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
+  const [ready, setReady]             = useState(false)
+  const [mounted, setMounted]         = useState(false)   // 防止 dark mode logo hydration mismatch
 
   const { resolvedTheme } = useTheme()
 
@@ -189,12 +223,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       const { data: profile } = await supabase
         .from('users')
-        .select('role, name')
+        .select('role, name, avatar_url')
         .eq('id', data.user.id)
         .single()
 
       if (profile?.role) setRole(profile.role)
       if (profile?.name) setUserName(profile.name)
+      if (profile?.avatar_url) setAvatarUrl(profile.avatar_url)
       setReady(true)
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,24 +299,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
 
-        {/* ── 使用者姓名膠囊 ── */}
-        <div className="flex w-full justify-center py-4">
-          <span
-            className="inline-block text-[11px] font-semibold tracking-wide px-3.5 py-1.5 rounded-full
-              max-w-[80%] truncate text-center transition-colors duration-300"
-            style={{
-              backgroundColor: 'var(--nav-active-bg)',
-              color: 'var(--brand)',
-            }}
-          >
-            {userName || (userEmail ? userEmail.split('@')[0] : '未設定名稱')}
-          </span>
-        </div>
-
-        {/* ── 導覽選單（帳號資料置頂） ── */}
-        <nav className="flex-1 px-3 space-y-0.5 pb-2">
+        {/* ── 導覽選單 ── */}
+        <nav className="flex-1 px-3 pt-4 space-y-0.5 pb-2">
           {navItems.map(item => {
-            // 精確匹配：以「最長吻合路徑」為優先，避免父路徑與子路徑同時高亮
             const matches = (href: string) =>
               pathname === href || pathname.startsWith(href + '/')
             const isActive =
@@ -308,19 +328,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{ height: '1px', backgroundColor: 'var(--sidebar-border)' }}
         />
 
-        {/* ── 系統設定（固定底部） ── */}
-        <div className="px-3 pt-2">
-          <NavLink
-            item={SETTINGS_NAV}
-            isActive={pathname.startsWith(SETTINGS_NAV.href)}
-          />
+        {/* ── 使用者卡片（左下角） ── */}
+        <div className="px-3 pt-3 pb-1">
+          <div
+            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200"
+            style={{ backgroundColor: 'transparent' }}
+          >
+            {/* 頭像 */}
+            <UserAvatar
+              name={userName || (userEmail ? userEmail.split('@')[0] : '?')}
+              avatarUrl={avatarUrl}
+              size={36}
+            />
+
+            {/* 名字 */}
+            <div className="flex-1 min-w-0">
+              <p
+                className="text-sm font-semibold truncate transition-colors duration-300"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {userName || (userEmail ? userEmail.split('@')[0] : '未設定名稱')}
+              </p>
+              <p
+                className="text-[10px] truncate transition-colors duration-300"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                {userEmail}
+              </p>
+            </div>
+
+            {/* 設定齒輪圖示 */}
+            <Link
+              href="/dashboard/settings"
+              className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200"
+              style={{ color: 'var(--text-tertiary)' }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLElement
+                el.style.backgroundColor = 'var(--nav-hover-bg)'
+                el.style.color = 'var(--brand)'
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLElement
+                el.style.backgroundColor = 'transparent'
+                el.style.color = 'var(--text-tertiary)'
+              }}
+            >
+              <IconSettings />
+            </Link>
+          </div>
         </div>
 
         {/* ── 登出按鈕 ── */}
-        <div className="px-3 pt-4 pb-3">
+        <div className="px-3 pb-2">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-150"
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-150"
             style={{ color: 'var(--text-tertiary)' }}
             onMouseEnter={e => {
               const el = e.currentTarget as HTMLElement
@@ -339,9 +401,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* ── 版權銘牌 ── */}
-        <div className="px-4 pb-5 text-center leading-tight transition-colors duration-300">
+        <div className="px-4 pb-4 text-center leading-tight transition-colors duration-300">
           <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-            GranTurismoEDU v1.2.0
+            GranTurismoEDU v1.4.2
           </p>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
             PythaGodzillaCorp. © 2026
